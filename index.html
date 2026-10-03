@@ -98,7 +98,7 @@ h2{font-family:var(--display);font-weight:400;font-size:24px;margin:0 0 16px;col
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
 
 /* item card */
-.item{--rc:#888;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:4px;padding:10px 8px 8px;border-radius:9px;border-bottom:5px solid var(--rc);background:linear-gradient(180deg,#2b1c15 0%,color-mix(in srgb,var(--rc) 30%,#2b1c15) 100%);transition:opacity .3s,transform .3s}
+.item{--rc:#888;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:4px;padding:10px 8px 8px;border-radius:9px;border-bottom:5px solid var(--rc);background:radial-gradient(ellipse 70% 55% at 50% 42%,color-mix(in srgb,var(--rc) 38%,transparent),transparent 72%),linear-gradient(180deg,#2b1c15 0%,color-mix(in srgb,var(--rc) 22%,#2b1c15) 100%);transition:opacity .3s,transform .3s}
 .item svg{width:100%;height:auto;max-height:92px}
 .iname{text-align:center;line-height:1.2;width:100%}
 .iname .breed{display:block;font-size:12px;color:var(--muted);font-weight:700}
@@ -117,6 +117,16 @@ select{background:var(--barn);color:var(--cream);border:2px solid var(--plank);b
 .empty{padding:50px 20px;text-align:center;color:var(--muted);border:2px dashed var(--plank);border-radius:12px}
 .danger{margin-top:36px;text-align:center}
 .danger button{background:none;border:0;color:var(--muted);text-decoration:underline;font-weight:700}
+
+/* trade */
+.trade-hint{color:var(--muted);max-width:640px;margin:0 0 16px}
+.slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:620px}
+.slots .item,.slot-empty{min-height:190px}
+.slot-empty{border:2px dashed var(--plank);border-radius:9px;display:grid;place-items:center;color:var(--muted);font-weight:700;text-align:center;padding:8px}
+.trade-out{margin-top:18px;min-height:0}
+.trade-out .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.pct{font-size:13px;font-weight:800;color:var(--straw)}
+.trade-out h3{margin:0 0 10px;font-size:17px;color:var(--straw)}
 
 /* dialog */
 dialog{border:3px solid var(--rc,var(--plank));border-radius:16px;background:var(--barn);color:var(--cream);padding:24px 26px;width:min(92vw,420px);text-align:center;box-shadow:0 0 60px color-mix(in srgb,var(--rc,#000) 50%,transparent)}
@@ -137,8 +147,10 @@ footer{max-width:1100px;margin:0 auto;padding:0 20px 40px;color:var(--muted);fon
 
 /* shine on special skins */
 .shine{animation:shine 3.4s linear infinite}
+.tw{transform-box:fill-box;transform-origin:center;animation:tw 2.4s ease-in-out infinite}
+@keyframes tw{0%,100%{transform:scale(.4);opacity:.3}50%{transform:scale(1);opacity:1}}
 @keyframes shine{0%{transform:translateX(-60px) skewX(-20deg)}55%,100%{transform:translateX(290px) skewX(-20deg)}}
-@media (prefers-reduced-motion:reduce){.shine{animation:none}.case-card,.item{transition:none}}
+@media (prefers-reduced-motion:reduce){.shine,.tw{animation:none}.case-card,.item{transition:none}}
 @media (max-width:560px){.roulette{height:178px}.strip .item{flex-basis:132px;width:132px;height:154px}}
 </style>
 </head>
@@ -156,6 +168,7 @@ footer{max-width:1100px;margin:0 auto;padding:0 20px 40px;color:var(--muted);fon
 <nav class="tabs" aria-label="Widoki">
   <button type="button" data-view="cases" class="on">Skrzynki</button>
   <button type="button" data-view="inv">Ekwipunek <span class="badge" id="invCount">0</span></button>
+  <button type="button" data-view="trade">Wymiana</button>
 </nav>
 
 <main>
@@ -203,6 +216,16 @@ footer{max-width:1100px;margin:0 auto;padding:0 20px 40px;color:var(--muted);fon
     <div class="grid" id="invGrid"></div>
     <div class="danger"><button type="button" id="resetBtn">Zacznij grę od nowa</button></div>
   </section>
+
+  <section id="v-trade" hidden>
+    <h2>Wymiana skinów</h2>
+    <p class="trade-hint">Włóż 3 skiny tej samej rzadkości, a dostaniesz 1 skina o stopień wyżej. Wynik losuje się ze skrzynek, z których pochodzą Twoje skiny. Rzadkich specjałów nie da się wymienić dalej.</p>
+    <div class="slots" id="tradeSlots"></div>
+    <div class="trade-out" id="tradeOut"></div>
+    <div class="controls"><button class="open-btn" id="tradeBtn" type="button">Wymień</button></div>
+    <h2 style="margin-top:30px" id="pickTitle">Wybierz skiny</h2>
+    <div class="grid" id="tradeGrid"></div>
+  </section>
 </main>
 
 <footer>
@@ -222,6 +245,7 @@ const TROUGH_REWARD = 100;      // nagroda z żłobu
 const TROUGH_COOLDOWN = 30;     // sekundy między karmieniami
 const SPIN_MS = 7000;           // czas losowania
 const SPIN_FAST_MS = 1800;      // czas w trybie szybkim
+const TRADE_COUNT = 3;          // ile skinów trzeba oddać w wymianie
 const SAVE_KEY = 'prosiak-case-v1';
 
 /* ===================== NARZĘDZIA ===================== */
@@ -263,16 +287,16 @@ const SKINS = [
   { id: 'kamo',   breed: 'Berkshire',    title: 'Leśny Kamuflaż',    rarity: 'res', base: 62,  art: { body: '#6b7d4a', ear: '#4f5e36', snout: '#8a9a68', pat: 'spots', pc: ['#4a5a30', '#2f3a1f', '#8a7a4a'] } },
   { id: 'sliwka', breed: 'Złotnicka',    title: 'Śliwkowy Boczek',   rarity: 'res', base: 85,  art: { body: '#7d4a8c', ear: '#5e3470', snout: '#a273b0', pat: 'dots', pc: '#c79be0' } },
   // Tajny
-  { id: 'neon',   breed: 'Mangalica',    title: 'Neonowy Boczek',    rarity: 'cls', base: 320, art: { body: '#1b1030', ear: '#ff2bd6', snout: '#ff7be5', pat: 'neon' } },
+  { id: 'neon',   breed: 'Mangalica',    title: 'Neonowy Boczek',    rarity: 'cls', base: 320, art: { body: '#1b1030', ear: '#ff2bd6', snout: '#ff7be5', pat: 'neon', line: '#ff2bd6' } },
   { id: 'zebra',  breed: 'Pietrain',     title: 'Zebra z Zagrody',   rarity: 'cls', base: 240, art: { body: '#f5f5f5', ear: '#222222', snout: '#d9d9d9', pat: 'stripes', pc: '#161616', sp: 14, ang: -10 } },
-  { id: 'lawa',   breed: 'Duroc',        title: 'Wulkaniczny Knur',  rarity: 'cls', base: 380, art: { body: '#2a1410', ear: '#ff6a1a', snout: '#6b2f20', hoof: '#ff6a1a', pat: 'lava' } },
+  { id: 'lawa',   breed: 'Duroc',        title: 'Wulkaniczny Knur',  rarity: 'cls', base: 380, art: { body: '#2a1410', ear: '#ff6a1a', snout: '#6b2f20', hoof: '#ff6a1a', pat: 'lava', line: '#ff6a1a' } },
   // Ściśle tajny
-  { id: 'kosmos', breed: 'Mangalica',    title: 'Kosmiczna Maciora', rarity: 'cov', base: 1500, art: { body: '#140b33', ear: '#6b3fd1', snout: '#6a4fb0', pat: 'galaxy' } },
-  { id: 'tecza',  breed: 'Kunekune',     title: 'Tęczowy Wieprz',    rarity: 'cov', base: 1100, art: { body: '#ffffff', ear: '#ff8fb3', snout: '#ffd0e0', pat: 'rainbow' } },
+  { id: 'kosmos', breed: 'Mangalica',    title: 'Kosmiczna Maciora', rarity: 'cov', base: 1500, spark: '#c9b6ff', art: { body: '#140b33', ear: '#6b3fd1', snout: '#6a4fb0', pat: 'galaxy', line: '#6b3fd1' } },
+  { id: 'tecza',  breed: 'Kunekune',     title: 'Tęczowy Wieprz',    rarity: 'cov', base: 1100, spark: '#ffffff', art: { body: '#ffffff', ear: '#ff8fb3', snout: '#ffd0e0', pat: 'rainbow' } },
   // Rzadki specjał
-  { id: 'zlota',  breed: 'Mangalica',    title: 'Złota Świnia',      rarity: 'spc', base: 9000,  shine: true, art: { body: '#ffc83d', ear: '#d99a00', snout: '#ffe08a', hoof: '#8a5a00', pat: 'gold' } },
-  { id: 'diament',breed: 'Hampshire',    title: 'Diamentowy Prosiak',rarity: 'spc', base: 12000, shine: true, art: { body: '#bfeeff', ear: '#7fd4f0', snout: '#e3f9ff', hoof: '#4a7f95', pat: 'diamond' } },
-  { id: 'obsyd',  breed: 'Berkshire',    title: 'Obsydianowy Dzik',  rarity: 'spc', base: 15000, shine: true, art: { body: '#15121a', ear: '#ffc83d', snout: '#3a3340', hoof: '#ffc83d', pat: 'obsidian' } }
+  { id: 'zlota',  breed: 'Mangalica',    title: 'Złota Świnia',      rarity: 'spc', base: 9000,  shine: true, spark: '#fff3b0', art: { body: '#ffc83d', ear: '#d99a00', snout: '#ffe08a', hoof: '#8a5a00', pat: 'gold' } },
+  { id: 'diament',breed: 'Hampshire',    title: 'Diamentowy Prosiak',rarity: 'spc', base: 12000, shine: true, spark: '#ffffff', art: { body: '#bfeeff', ear: '#7fd4f0', snout: '#e3f9ff', hoof: '#4a7f95', pat: 'diamond' } },
+  { id: 'obsyd',  breed: 'Berkshire',    title: 'Obsydianowy Dzik',  rarity: 'spc', base: 15000, shine: true, spark: '#ffc83d', art: { body: '#15121a', ear: '#ffc83d', snout: '#3a3340', hoof: '#ffc83d', pat: 'obsidian', line: '#6b5320' } }
 ];
 const SK = Object.fromEntries(SKINS.map(s => [s.id, s]));
 
@@ -288,20 +312,32 @@ const CASES = [
 
 /* ===================== RYSOWANIE ŚWINI (SVG) ===================== */
 let uidN = 0;
-const SHAPES = '<ellipse cx="100" cy="80" rx="70" ry="40"/><ellipse cx="163" cy="78" rx="33" ry="30"/>' +
-  '<rect x="50" y="100" width="17" height="34" rx="7"/><rect x="74" y="104" width="17" height="30" rx="7"/>' +
-  '<rect x="124" y="104" width="17" height="30" rx="7"/><rect x="148" y="100" width="17" height="34" rx="7"/>';
-const SPOTS = [[62,66,15,11],[104,92,13,10],[128,58,12,16],[88,52,10,8],[152,86,9,7],[48,92,9,7],[172,62,8,6],[118,76,8,6]];
+const TORSO = 'M52 44 C80 34 120 34 144 42 C156 38 172 40 184 50 C192 56 200 62 206 68 C214 72 215 90 207 94 C198 100 186 106 172 108 C156 112 146 120 128 120 C108 124 80 124 62 118 C38 112 24 92 26 74 C28 56 38 46 52 44 Z';
+const leg = x => `M${x} 104 L${x + 17} 104 L${x + 15} 130 Q${x + 15} 136 ${x + 8} 136 Q${x + 1} 136 ${x + 1} 130 Z`;
+const NEAR = [46, 124], FAR = [70, 148];
+const SPOTS = [[60,66,14],[96,92,12],[124,60,11],[84,52,9],[150,92,8],[46,92,9],[176,58,7],[116,84,7],[70,110,6],[138,108,6],[192,76,5],[36,76,8],[54,126,5],[132,126,5]];
+const CAMO = [[50,70,22],[92,52,20],[120,92,22],[150,64,18],[176,88,14],[70,108,14],[44,104,12],[196,70,10],[138,114,12],[104,70,12]];
 const STARS = [[40,50],[66,92],[92,60],[118,104],[134,66],[152,92],[176,58],[190,84],[58,120],[104,40],[78,112],[142,118],[170,110],[48,70],[124,48]];
 
-const spots = c => SPOTS.map(([x, y, rx, ry], i) =>
-  `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" transform="rotate(${i * 37} ${x} ${y})" fill="${Array.isArray(c) ? c[i % c.length] : c}"/>`).join('');
-const dots = c => { let s = ''; for (let r = 0; r < 6; r++) for (let x = 30 + (r % 2) * 11; x < 215; x += 22) s += `<circle cx="${x}" cy="${40 + r * 17}" r="4.500"/>`; return `<g fill="${c}">${s}</g>`; };
-const stripes = (c, sp, ang) => { let s = ''; for (let x = -40; x < 280; x += sp * 2) s += `<rect x="${x}" y="-40" width="${sp}" height="240"/>`; return `<g fill="${c}" transform="rotate(${ang} 110 75)">${s}</g>`; };
+function blob(x, y, r, k, c) {
+  const n = 7, p = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / n * Math.PI * 2, rr = r * (0.72 + 0.38 * Math.abs(Math.sin(k * 2.3 + i * 1.9)));
+    p.push([x + Math.cos(t) * rr, y + Math.sin(t) * rr * 0.82]);
+  }
+  const m = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const f = v => v.toFixed(1);
+  let d = `M${f(m(p[n - 1], p[0])[0])} ${f(m(p[n - 1], p[0])[1])}`;
+  for (let i = 0; i < n; i++) { const q = p[i], e = m(p[i], p[(i + 1) % n]); d += `Q${f(q[0])} ${f(q[1])} ${f(e[0])} ${f(e[1])}`; }
+  return `<path d="${d}Z" fill="${c}"/>`;
+}
+const blobs = (list, c) => list.map(([x, y, r], i) => blob(x, y, r, i + 1, Array.isArray(c) ? c[i % c.length] : c)).join('');
+const dots = c => { let s = ''; for (let r = 0; r < 7; r++) for (let x = 28 + (r % 2) * 11; x < 215; x += 22) s += `<circle cx="${x}" cy="${36 + r * 15}" r="4"/>`; return `<g fill="${c}">${s}</g>`; };
+const stripes = (c, sp, ang) => { let s = ''; for (let x = -30; x < 260; x += sp * 2) s += `<path d="M${x + ang} 20 Q${x + ang + 18} 80 ${x - ang} 150"/>`; return `<g fill="none" stroke="${c}" stroke-width="${sp}">${s}</g>`; };
 
 const PAT = {
   none: () => '',
-  spots: (u, a) => spots(a.pc),
+  spots: (u, a) => blobs(Array.isArray(a.pc) ? CAMO : SPOTS, a.pc),
   dots: (u, a) => dots(a.pc),
   stripes: (u, a) => stripes(a.pc, a.sp || 16, a.ang || -12),
   neon: () => {
@@ -310,37 +346,78 @@ const PAT = {
   },
   lava: () => {
     const P = ['M44 104 L70 82 L64 62 L92 52 L106 72 L132 62 L148 92 L184 76', 'M78 126 L96 98 L120 106 L134 126'];
-    return P.map(d => `<path d="${d}" stroke="#ff6a1a" stroke-opacity=".35" stroke-width="9" fill="none" stroke-linejoin="round"/><path d="${d}" stroke="#ff8a2a" stroke-width="3.500" fill="none" stroke-linejoin="round"/><path d="${d}" stroke="#ffd23f" stroke-width="1.200" fill="none" stroke-linejoin="round"/>`).join('');
+    return P.map(d => `<path d="${d}" stroke="#ff6a1a" stroke-opacity=".35" stroke-width="9" fill="none" stroke-linejoin="round"/><path d="${d}" stroke="#ff8a2a" stroke-width="3.5" fill="none" stroke-linejoin="round"/><path d="${d}" stroke="#ffd23f" stroke-width="1.2" fill="none" stroke-linejoin="round"/>`).join('');
   },
   galaxy: u => `<linearGradient id="${u}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b0626"/><stop offset=".5" stop-color="#2a1260"/><stop offset="1" stop-color="#0b0626"/></linearGradient>` +
     `<rect width="220" height="150" fill="url(#${u}g)"/><ellipse cx="80" cy="76" rx="42" ry="20" fill="#ff4fd8" opacity=".25" transform="rotate(-20 80 76)"/><ellipse cx="140" cy="92" rx="40" ry="16" fill="#3fd0ff" opacity=".22" transform="rotate(15 140 92)"/>` +
-    STARS.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 3 ? 1 : 1.700}" fill="#fff"/>`).join(''),
-  rainbow: () => ['#ff4d4d', '#ff9f43', '#ffe14d', '#4dd66a', '#4db8ff', '#9b6bff'].map((c, i) => `<rect x="0" y="${34 + i * 17}" width="220" height="17.500" fill="${c}"/>`).join(''),
+    STARS.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 3 ? 1 : 1.7}" fill="#fff"/>`).join('') +
+    [[66,92],[134,66],[104,40],[170,110]].map(([x, y]) => `<path d="M${x - 5} ${y}H${x + 5}M${x} ${y - 5}V${y + 5}" stroke="#fff" stroke-width=".9" opacity=".8"/>`).join(''),
+  rainbow: () => ['#ff4d4d', '#ff9f43', '#ffe14d', '#4dd66a', '#4db8ff', '#9b6bff'].map((c, i) => {
+    const y = 30 + i * 17;
+    return `<path d="M-20 ${y} Q35 ${y - 8} 90 ${y} T200 ${y} T310 ${y}" stroke="${c}" stroke-width="18" fill="none"/>`;
+  }).join(''),
   gold: u => `<linearGradient id="${u}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4b0"/><stop offset=".35" stop-color="#ffc83d"/><stop offset=".62" stop-color="#c98a00"/><stop offset="1" stop-color="#ffe27a"/></linearGradient>` +
-    `<rect width="220" height="150" fill="url(#${u}g)"/><ellipse cx="90" cy="58" rx="40" ry="9" fill="#fff" opacity=".35" transform="rotate(-8 90 58)"/>`,
+    `<rect width="220" height="150" fill="url(#${u}g)"/><g fill="none" stroke="#a87000" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"><path d="M56 70 q12 -16 26 0 t26 0"/><path d="M64 96 q10 -12 22 0 t22 0"/></g>`,
   diamond: u => `<linearGradient id="${u}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0fdff"/><stop offset=".5" stop-color="#7fd6f5"/><stop offset="1" stop-color="#d6f6ff"/></linearGradient>` +
-    `<rect width="220" height="150" fill="url(#${u}g)"/><g fill="#fff" opacity=".4"><polygon points="30,84 74,42 112,84"/><polygon points="112,84 150,40 186,84"/></g><g fill="#2a90b8" opacity=".22"><polygon points="50,120 92,70 130,120"/><polygon points="130,120 160,76 200,120"/></g>`,
+    `<rect width="220" height="150" fill="url(#${u}g)"/><g fill="#fff" opacity=".42"><polygon points="30,84 74,42 112,84"/><polygon points="112,84 150,40 186,84"/><polygon points="150,40 186,84 214,66"/></g><g fill="#2a90b8" opacity=".24"><polygon points="50,122 92,70 130,122"/><polygon points="130,122 160,76 200,122"/><polygon points="26,74 30,84 50,122"/></g>`,
   obsidian: u => `<linearGradient id="${u}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2535"/><stop offset="1" stop-color="#0a080d"/></linearGradient>` +
-    `<rect width="220" height="150" fill="url(#${u}g)"/><g fill="none" stroke="#ffc83d" stroke-linejoin="round"><path d="M40 92 L70 70 L88 86 L120 56 L146 78 L182 60" stroke-width="2.500"/><path d="M62 124 L92 104 L110 118 L138 96" stroke-width="2"/></g>`
+    `<rect width="220" height="150" fill="url(#${u}g)"/><g fill="none" stroke="#ffc83d" stroke-linejoin="round"><path d="M40 92 L70 70 L88 86 L120 56 L146 78 L182 60" stroke-width="2.5"/><path d="M62 124 L92 104 L110 118 L138 96" stroke-width="2"/></g>`
 };
+
+const star = (x, y, k, c, delay) =>
+  `<g transform="translate(${x} ${y}) scale(${k})"><path class="tw" style="animation-delay:${delay}s" d="M0 -7Q1 -1 7 0Q1 1 0 7Q-1 1 -7 0Q-1 -1 0 -7Z" fill="${c}"/></g>`;
 
 function pigSVG(sk) {
   const a = sk.art, u = 'p' + (uidN++);
+  const line = a.line || mix(a.body, '#000000', .55);
   const pat = (PAT[a.pat] || PAT.none)(u, a);
+  const near = NEAR.map(leg).join(''), far = FAR.map(leg).join('');
+  const hoof = a.hoof || '#3b2a22';
+  const hooves = xs => xs.map(x => `<path d="M${x + 1.2} 127H${x + 13.8}L${x + 15} 130Q${x + 15} 136 ${x + 8} 136Q${x + 1} 136 ${x + 1} 130Z" fill="${hoof}"/><path d="M${x + 8} 132V136" stroke="#000" stroke-opacity=".5"/>`).join('');
+  const tail = 'M30 68C16 66 10 54 18 47C25 42 33 48 28 54C25 58 20 55 22 52';
+  const inner = mix(a.ear, '#ffffff', .4);
+
+  let acc = '', over = '';
+  if (sk.id === 'zlota') acc = `<g transform="translate(176 22) rotate(14 15 20)"><path d="M0 22L2 4L9 12L15 0L21 12L28 4L30 22Z" fill="#ffd23f" stroke="#7a5200" stroke-width="1.6" stroke-linejoin="round"/><circle cx="15" cy="16" r="2.2" fill="#ff4d6d"/><circle cx="7" cy="17" r="1.5" fill="#4dd6ff"/><circle cx="23" cy="17" r="1.5" fill="#4dd6ff"/></g>`;
+  if (sk.id === 'neon') over = `<path d="M174 59L160 56" stroke="#00e5ff" stroke-width="1.6"/><path d="M172 57H196L193 70Q184 74 175 69Z" fill="#06121c" stroke="#00e5ff" stroke-width="2.2" stroke-linejoin="round"/><path d="M177 60H185L179 66Z" fill="#fff" opacity=".35"/>`;
+  if (sk.id === 'krowie') over = `<path d="M134 98Q144 106 156 98" stroke="#6b3f22" stroke-width="3" fill="none"/><path d="M139 104H151L153 118H137Z" fill="#e8b73c" stroke="#8a5a00" stroke-width="1.3" stroke-linejoin="round"/><circle cx="145" cy="119" r="2.4" fill="#8a5a00"/>`;
+  const sparkle = sk.spark ? star(34, 30, 1, sk.spark, 0) + star(204, 26, .8, sk.spark, .7) + star(16, 100, .7, sk.spark, 1.3) + star(196, 124, .9, sk.spark, 1.9) : '';
+
   return `<svg viewBox="0 0 220 150" aria-hidden="true" focusable="false">` +
-    `<defs><clipPath id="${u}c">${SHAPES}</clipPath>` +
-    `<linearGradient id="${u}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".32"/></linearGradient></defs>` +
-    `<ellipse cx="112" cy="140" rx="86" ry="6" fill="#000" opacity=".35"/>` +
-    `<path d="M32 74 C14 70 10 52 22 48 C32 45 34 56 26 58" fill="none" stroke="${a.body}" stroke-width="6" stroke-linecap="round"/>` +
-    `<g fill="${a.body}">${SHAPES}</g>` +
+    `<defs><clipPath id="${u}c"><path d="${TORSO}"/>${NEAR.map(x => `<path d="${leg(x)}"/>`).join('')}</clipPath>` +
+    `<linearGradient id="${u}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient></defs>` +
+    `<ellipse cx="116" cy="139" rx="90" ry="6" fill="#000" opacity=".35"/>` +
+    // ogon
+    `<path d="${tail}" fill="none" stroke="${line}" stroke-width="8" stroke-linecap="round"/><path d="${tail}" fill="none" stroke="${a.body}" stroke-width="4.5" stroke-linecap="round"/>` +
+    // dalsze nogi (ciemniejsze, daje głębię)
+    `<g fill="${line}" stroke="${line}" stroke-width="3.5" stroke-linejoin="round">${far.split('Z').filter(Boolean).map(d => `<path d="${d}Z"/>`).join('')}</g>` +
+    `<g fill="${a.body}">${FAR.map(x => `<path d="${leg(x)}"/>`).join('')}</g>` +
+    `<g fill="#000" opacity=".3">${FAR.map(x => `<path d="${leg(x)}"/>`).join('')}</g>${hooves(FAR)}` +
+    // korpus z obrysem
+    `<g fill="${line}" stroke="${line}" stroke-width="3.5" stroke-linejoin="round"><path d="${TORSO}"/>${NEAR.map(x => `<path d="${leg(x)}"/>`).join('')}</g>` +
+    `<g fill="${a.body}"><path d="${TORSO}"/>${NEAR.map(x => `<path d="${leg(x)}"/>`).join('')}</g>` +
+    // wzór + światło
     `<g clip-path="url(#${u}c)">${pat}<rect width="220" height="150" fill="url(#${u}s)"/>` +
+      `<ellipse cx="95" cy="123" rx="58" ry="10" fill="#000" opacity=".16"/>` +
+      `<ellipse cx="92" cy="49" rx="38" ry="6" fill="#fff" opacity=".24" transform="rotate(-4 92 49)"/>` +
+      `<path d="M150 52Q142 80 152 108" stroke="#000" stroke-opacity=".14" stroke-width="2.5" fill="none"/>` +
+      `<ellipse cx="176" cy="87" rx="9" ry="6" fill="#ff5f86" opacity=".22"/>` +
       (sk.shine ? `<rect class="shine" x="0" y="-20" width="26" height="200" fill="#fff" opacity=".5"/>` : '') + `</g>` +
-    `<g fill="${a.hoof || '#3b2a22'}"><rect x="50" y="126" width="17" height="8" rx="3"/><rect x="74" y="126" width="17" height="8" rx="3"/><rect x="124" y="126" width="17" height="8" rx="3"/><rect x="148" y="126" width="17" height="8" rx="3"/></g>` +
-    `<polygon points="146,56 156,26 182,52" fill="${a.ear}"/>` +
-    `<ellipse cx="200" cy="82" rx="13" ry="15" fill="${a.snout}"/>` +
-    `<g fill="${mix(a.snout, '#000000', .55)}"><ellipse cx="204" cy="76" rx="2.600" ry="4"/><ellipse cx="204" cy="88" rx="2.600" ry="4"/></g>` +
-    `<circle cx="176" cy="68" r="4.200" fill="#1a1010"/><circle cx="177.300" cy="66.700" r="1.400" fill="#fff"/>` +
-    `</svg>`;
+    hooves(NEAR) + acc +
+    // ucho
+    `<path d="M150 48C148 30 166 20 182 28C176 34 176 44 170 54C164 56 154 54 150 48Z" fill="${a.ear}" stroke="${line}" stroke-width="2" stroke-linejoin="round"/>` +
+    `<path d="M155 46C155 36 166 30 175 33C171 39 170 46 166 51C161 52 157 50 155 46Z" fill="${inner}" opacity=".75"/>` +
+    // pysk
+    `<ellipse cx="202" cy="82" rx="13" ry="13" fill="${a.snout}" opacity=".75"/>` +
+    `<ellipse cx="208" cy="81" rx="6.5" ry="12.5" fill="${a.snout}" stroke="${line}" stroke-width="1.6"/>` +
+    `<ellipse cx="206.5" cy="75" rx="1.6" ry="2.6" fill="#000" opacity=".1"/>` +
+    `<g fill="${mix(a.snout, '#000000', .6)}"><ellipse cx="209" cy="76" rx="1.9" ry="3.4"/><ellipse cx="209" cy="86" rx="1.9" ry="3.4"/></g>` +
+    `<ellipse cx="205.5" cy="73" rx="1.6" ry="4" fill="#fff" opacity=".35"/>` +
+    `<path d="M188 99Q198 102 205 95" stroke="#000" stroke-opacity=".45" stroke-width="1.5" fill="none" stroke-linecap="round"/>` +
+    // oko
+    `<path d="M175 57Q182 54 189 58" stroke="#000" stroke-opacity=".5" stroke-width="1.5" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="182" cy="63" r="3.6" fill="#1a1010"/><circle cx="183.2" cy="61.8" r="1.3" fill="#fff"/>` +
+    over + sparkle + `</svg>`;
 }
 
 function crateSVG(accent) {
@@ -428,7 +505,8 @@ function setView(v) {
   $('#v-cases').hidden = v !== 'cases';
   $('#v-case').hidden = v !== 'case';
   $('#v-inv').hidden = v !== 'inv';
-  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.view === (v === 'inv' ? 'inv' : 'cases')));
+  $('#v-trade').hidden = v !== 'trade';
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.view === (v === 'case' ? 'cases' : v)));
 }
 
 function renderBalance() {
@@ -575,6 +653,7 @@ function sellItem(uid, silent) {
   const v = valueOf(st.inv[i]);
   st.inv.splice(i, 1); st.bal += v; save();
   renderBalance(); renderInv();
+  if (view === 'trade') renderTrade();
   if (!silent) toast(`Sprzedano za ${fmt(v)} żołędzi`);
   return v;
 }
@@ -593,6 +672,84 @@ function renderInv() {
       <button class="sell" type="button" data-sell="${it.uid}">Sprzedaj ${ACORN}${fmt(valueOf(it))}</button>`);
   }).join('') : '<div class="empty" style="grid-column:1/-1">Pusto. Otwórz pierwszą skrzynkę, żeby zdobyć świnię.</div>';
   $('#invCount').textContent = st.inv.length;
+}
+
+/* ===================== WYMIANA SKINÓW ===================== */
+let sel = [];
+function tradeOutcomes(items) {
+  const next = ORDER[ORDER.indexOf(SK[items[0].skin].rarity) + 1];
+  const map = {};
+  items.forEach(it => {
+    const cs = CASES.filter(c => c.items.includes(it.skin));
+    let pool = [...new Set(cs.flatMap(c => c.items.filter(id => SK[id].rarity === next)))];
+    if (!pool.length) pool = SKINS.filter(x => x.rarity === next).map(x => x.id);
+    pool.forEach(id => { map[id] = (map[id] || 0) + 1 / items.length / pool.length; });
+  });
+  return Object.entries(map).map(([id, p]) => ({ id, p })).sort((a, b) => b.p - a.p);
+}
+function renderTrade() {
+  sel = sel.filter(uid => st.inv.some(i => i.uid === uid));
+  const items = sel.map(uid => st.inv.find(i => i.uid === uid));
+  const rar = items.length ? SK[items[0].skin].rarity : null;
+  const full = items.length === TRADE_COUNT;
+
+  $('#tradeSlots').style.gridTemplateColumns = `repeat(${TRADE_COUNT},minmax(0,1fr))`;
+  let slots = '';
+  for (let i = 0; i < TRADE_COUNT; i++) {
+    const it = items[i];
+    slots += it
+      ? itemCard(SK[it.skin], `<div class="meta">${wearName(it.float)} (${it.float.toFixed(3)})</div><button class="sell" type="button" data-pick="${it.uid}">Zdejmij</button>`)
+      : '<div class="slot-empty">Pusty slot</div>';
+  }
+  $('#tradeSlots').innerHTML = slots;
+
+  if (full) {
+    const out = tradeOutcomes(items);
+    $('#tradeOut').innerHTML = `<h3>Możesz dostać (${RAR[ORDER[ORDER.indexOf(rar) + 1]].name})</h3><div class="grid">` +
+      out.map(o => itemCard(SK[o.id], `<div class="pct">${(o.p * 100).toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%</div>`)).join('') + '</div>';
+  } else {
+    $('#tradeOut').innerHTML = '';
+  }
+  const btn = $('#tradeBtn');
+  btn.disabled = !full || busy;
+  btn.textContent = full ? 'Wymień' : `Wybierz jeszcze ${TRADE_COUNT - items.length}`;
+
+  const list = st.inv.filter(i => !sel.includes(i.uid) && SK[i.skin].rarity !== 'spc' && (!rar || SK[i.skin].rarity === rar))
+    .sort((a, b) => (ORDER.indexOf(SK[a.skin].rarity) - ORDER.indexOf(SK[b.skin].rarity)) || (valueOf(a) - valueOf(b)));
+  $('#pickTitle').textContent = rar ? `Twoje skiny: ${RAR[rar].name}` : 'Twoje skiny';
+  $('#tradeGrid').innerHTML = list.length ? list.map(it =>
+    itemCard(SK[it.skin], `<div class="meta">${wearName(it.float)} (${it.float.toFixed(3)})</div>
+      <button class="sell" type="button" data-pick="${it.uid}"${full ? ' disabled' : ''}>Dodaj do wymiany</button>`)).join('')
+    : `<div class="empty" style="grid-column:1/-1">${rar ? 'Nie masz więcej skinów tej rzadkości.' : 'Nie masz skinów do wymiany. Otwórz skrzynki.'}</div>`;
+}
+function togglePick(uid) {
+  if (busy) return;
+  if (sel.includes(uid)) sel = sel.filter(x => x !== uid);
+  else if (sel.length < TRADE_COUNT) sel.push(uid);
+  renderTrade();
+}
+async function doTrade() {
+  if (busy || sel.length !== TRADE_COUNT) return;
+  const items = sel.map(uid => st.inv.find(i => i.uid === uid));
+  if (items.some(i => !i)) { sel = []; return renderTrade(); }
+  const rar = SK[items[0].skin].rarity;
+  if (rar === 'spc' || items.some(i => SK[i.skin].rarity !== rar)) { toast('Skiny muszą mieć tę samą rzadkość.'); return; }
+  busy = true; ac();
+  const out = tradeOutcomes(items);
+  let r = rnd(), id = out[out.length - 1].id;
+  for (const o of out) { if (r < o.p) { id = o.id; break; } r -= o.p; }
+  const avg = items.reduce((s, i) => s + i.float, 0) / items.length;
+  const drop = { uid: st.uid++, skin: id, float: Math.min(1, Math.max(0, avg + (rnd() - .5) * .1)), ts: Date.now() };
+  st.inv = st.inv.filter(i => !sel.includes(i.uid));
+  st.inv.push(drop); sel = []; save();
+  renderBalance(); renderTrade();
+  [330, 392, 466, 523].forEach((f, i) => blip(f, .18, 'triangle', .05, i * .22));
+  toast('Wymiana w toku...');
+  await new Promise(res => setTimeout(res, st.fast ? 500 : 1200));
+  busy = false;
+  winSound(SK[id].rarity);
+  renderTrade();
+  showResult(drop);
 }
 
 /* ===================== ŻŁÓB (darmowe żołędzie) ===================== */
@@ -622,6 +779,7 @@ function init() {
     if (busy) return toast('Poczekaj na koniec losowania.');
     current = null; setView(b.dataset.view);
     if (b.dataset.view === 'inv') renderInv();
+    if (b.dataset.view === 'trade') renderTrade();
   }));
 
   $('#trough').addEventListener('click', () => {
@@ -653,9 +811,13 @@ function init() {
   });
   $('#resetBtn').addEventListener('click', () => {
     if (!confirm('Usunąć cały postęp i zacząć od nowa?')) return;
+    sel = [];
     st = { bal: START_BALANCE, inv: [], opened: 0, troughAt: 0, muted: st.muted, fast: st.fast, uid: 1 };
     save(); renderBalance(); renderInv(); renderTrough(); toast('Zaczynasz od nowa.');
   });
+
+  $('#v-trade').addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if (b && !b.disabled) togglePick(Number(b.dataset.pick)); });
+  $('#tradeBtn').addEventListener('click', doTrade);
 
   window.addEventListener('resize', () => { if (current && !busy && view === 'case') idleStrip(); });
 }
