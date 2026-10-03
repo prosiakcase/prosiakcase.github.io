@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prosiak Case – otwieraj skrzynki ze świniami</title>
+<meta name="description" content="Otwieraj skrzynki jak w CS2, ale zamiast skinów do broni wypadają świnie. Złota Świnia czeka.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --mud:#1f1511;
+  --barn:#33211a;
+  --plank:#4d3225;
+  --plank-hi:#6b4630;
+  --straw:#ecd08a;
+  --cream:#f3e6cf;
+  --snout:#f4a6b8;
+  --gold:#ffc83d;
+  --muted:#b8a389;
+  --r-mil:#4b69ff; --r-res:#8847ff; --r-cls:#d32ce6; --r-cov:#eb4b4b; --r-spc:#ffd700;
+  --display:"Bungee","Impact","Arial Black",sans-serif;
+  --body:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--mud)}
+body{
+  margin:0;min-height:100vh;color:var(--cream);font-family:var(--body);font-weight:500;line-height:1.5;
+  background:
+    repeating-linear-gradient(90deg,rgba(0,0,0,.18) 0 2px,transparent 2px 120px),
+    linear-gradient(180deg,#2a1b14,#1a110d 60%);
+}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* header */
+.top{max-width:1100px;margin:0 auto;padding:18px 20px 8px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:12px}
+.brand svg{width:64px;height:auto}
+.brand h1{font-family:var(--display);font-weight:400;font-size:clamp(24px,4vw,34px);margin:0;color:var(--snout);text-shadow:0 3px 0 #7a2f45}
+.wallet{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.balance{display:flex;align-items:center;gap:8px;background:var(--barn);border:2px solid var(--plank);border-radius:999px;padding:6px 16px 6px 10px;font-family:var(--display);font-size:20px;color:var(--straw)}
+.ac{width:24px;height:24px;flex:none}
+.pill{background:var(--barn);border:2px solid var(--plank);border-radius:999px;padding:8px 16px;font-weight:800}
+.pill:hover:not(:disabled){border-color:var(--snout)}
+.pill:disabled{opacity:.55;cursor:default}
+.trough{border-color:var(--snout)}
+
+/* tabs */
+.tabs{max-width:1100px;margin:6px auto 0;padding:0 20px;display:flex;gap:6px;border-bottom:2px solid var(--plank)}
+.tabs button{background:none;border:0;padding:10px 18px;font-weight:800;font-size:17px;color:var(--muted);border-bottom:4px solid transparent;margin-bottom:-2px}
+.tabs button.on{color:var(--cream);border-bottom-color:var(--snout)}
+.tabs .badge{background:var(--plank);border-radius:999px;padding:0 9px;margin-left:6px;font-size:14px}
+
+main{max-width:1100px;margin:0 auto;padding:22px 20px 60px}
+h2{font-family:var(--display);font-weight:400;font-size:24px;margin:0 0 16px;color:var(--straw)}
+
+/* cases list */
+.case-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
+.case-card{background:var(--barn);border:2px solid var(--plank);border-radius:14px;padding:16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;transition:transform .15s,border-color .15s}
+.case-card:hover{transform:translateY(-4px);border-color:var(--cc)}
+.case-card svg.crate{width:78%;height:auto}
+.case-card h3{margin:4px 0 0;font-family:var(--display);font-weight:400;font-size:20px}
+.case-card p{margin:0;color:var(--muted);font-size:15px}
+.price{display:inline-flex;align-items:center;gap:6px;font-weight:800;color:var(--straw);font-size:18px}
+.price .ac{width:20px;height:20px}
+
+/* case page */
+.back{background:none;border:0;color:var(--muted);font-weight:800;padding:4px 0;margin-bottom:8px}
+.back:hover{color:var(--cream)}
+.case-head{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.case-head h2{margin:0}
+.roulette{position:relative;overflow:hidden;height:190px;background:#150d0a;border:2px solid var(--plank);border-radius:12px}
+.roulette::before,.roulette::after{content:"";position:absolute;top:0;bottom:0;width:90px;z-index:2;pointer-events:none}
+.roulette::before{left:0;background:linear-gradient(90deg,#150d0a,transparent)}
+.roulette::after{right:0;background:linear-gradient(270deg,#150d0a,transparent)}
+.pointer{position:absolute;left:50%;top:0;bottom:0;width:4px;transform:translateX(-50%);background:var(--gold);z-index:3;box-shadow:0 0 14px var(--gold)}
+.pointer::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);border:10px solid transparent;border-top-color:var(--gold)}
+.strip{position:absolute;top:12px;left:0;display:flex;gap:8px;will-change:transform}
+.strip .item{flex:0 0 150px;width:150px;height:166px}
+.strip .item.win{transform:scale(1.07);box-shadow:0 0 26px var(--rc);z-index:1}
+.roulette.done .item:not(.win){opacity:.3;transition:opacity .5s}
+.controls{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin:18px 0 6px}
+.open-btn{font-family:var(--display);font-size:22px;background:var(--snout);color:#4a1626;border:0;border-radius:12px;padding:12px 28px;box-shadow:0 5px 0 #a8566d;display:inline-flex;align-items:center;gap:10px}
+.open-btn:hover:not(:disabled){filter:brightness(1.06)}
+.open-btn:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #a8566d}
+.open-btn:disabled{background:#7c6a62;color:#2b1f1a;box-shadow:0 5px 0 #4d413b;cursor:default}
+.open-btn .ac{width:26px;height:26px}
+.check{display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:700}
+.check input{width:18px;height:18px;accent-color:var(--snout)}
+
+.group{margin-top:26px}
+.group-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid var(--rc);padding-bottom:4px;margin-bottom:12px}
+.group-head b{font-family:var(--display);font-weight:400;font-size:18px;color:var(--rc)}
+.group-head span{color:var(--muted);font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+
+/* item card */
+.item{--rc:#888;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:4px;padding:10px 8px 8px;border-radius:9px;border-bottom:5px solid var(--rc);background:linear-gradient(180deg,#2b1c15 0%,color-mix(in srgb,var(--rc) 30%,#2b1c15) 100%);transition:opacity .3s,transform .3s}
+.item svg{width:100%;height:auto;max-height:92px}
+.iname{text-align:center;line-height:1.2;width:100%}
+.iname .breed{display:block;font-size:12px;color:var(--muted);font-weight:700}
+.iname b{display:block;font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font-size:12px;color:var(--muted);font-weight:700}
+.sell{margin-top:4px;width:100%;background:var(--plank);border:0;border-radius:6px;padding:5px 6px;font-weight:800;display:flex;justify-content:center;align-items:center;gap:6px;font-size:14px}
+.sell:hover{background:#6d4631}
+.sell .ac{width:16px;height:16px}
+.grid .item{min-height:178px}
+
+/* inventory */
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.toolbar .left{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.total{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--straw)}
+select{background:var(--barn);color:var(--cream);border:2px solid var(--plank);border-radius:8px;padding:7px 10px;font:inherit;font-weight:700}
+.empty{padding:50px 20px;text-align:center;color:var(--muted);border:2px dashed var(--plank);border-radius:12px}
+.danger{margin-top:36px;text-align:center}
+.danger button{background:none;border:0;color:var(--muted);text-decoration:underline;font-weight:700}
+
+/* dialog */
+dialog{border:3px solid var(--rc,var(--plank));border-radius:16px;background:var(--barn);color:var(--cream);padding:24px 26px;width:min(92vw,420px);text-align:center;box-shadow:0 0 60px color-mix(in srgb,var(--rc,#000) 50%,transparent)}
+dialog::backdrop{background:rgba(10,5,3,.78)}
+dialog h3{font-family:var(--display);font-weight:400;font-size:22px;margin:0 0 6px;color:var(--rc)}
+dialog svg{width:100%;height:auto;max-height:170px;margin:6px 0}
+dialog .nm{font-size:20px;font-weight:800;line-height:1.2}
+dialog .sub{color:var(--muted);font-weight:700;margin:4px 0 16px}
+dialog .row{display:flex;gap:10px}
+dialog .row button{flex:1;border:0;border-radius:10px;padding:11px 8px;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;gap:6px}
+dialog .keep{background:var(--plank)}
+dialog .sellbtn{background:var(--snout);color:#4a1626}
+dialog .ac{width:18px;height:18px}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,30px);background:#000d;border:2px solid var(--plank);padding:10px 20px;border-radius:999px;font-weight:800;opacity:0;pointer-events:none;transition:.25s;z-index:20;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+footer{max-width:1100px;margin:0 auto;padding:0 20px 40px;color:var(--muted);font-size:13px}
+
+/* shine on special skins */
+.shine{animation:shine 3.4s linear infinite}
+@keyframes shine{0%{transform:translateX(-60px) skewX(-20deg)}55%,100%{transform:translateX(290px) skewX(-20deg)}}
+@media (prefers-reduced-motion:reduce){.shine{animation:none}.case-card,.item{transition:none}}
+@media (max-width:560px){.roulette{height:178px}.strip .item{flex-basis:132px;width:132px;height:154px}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><span id="logoPig" aria-hidden="true"></span><h1>Prosiak Case</h1></div>
+  <div class="wallet">
+    <button class="pill trough" id="trough" type="button">Żłób</button>
+    <div class="balance" title="Twoje żołędzie"><span id="acornIcon"></span><span id="bal">0</span></div>
+    <button class="pill" id="muteBtn" type="button" aria-pressed="false">Dźwięk: wł.</button>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Widoki">
+  <button type="button" data-view="cases" class="on">Skrzynki</button>
+  <button type="button" data-view="inv">Ekwipunek <span class="badge" id="invCount">0</span></button>
+</nav>
+
+<main>
+  <noscript>Ta strona wymaga włączonego JavaScriptu.</noscript>
+
+  <section id="v-cases">
+    <h2>Wybierz skrzynkę</h2>
+    <div class="case-grid" id="caseGrid"></div>
+  </section>
+
+  <section id="v-case" hidden>
+    <button class="back" type="button" id="backBtn">Wróć do skrzynek</button>
+    <div class="case-head">
+      <h2 id="caseTitle"></h2>
+    </div>
+    <div class="roulette" id="roulette" aria-label="Losowanie">
+      <div class="pointer"></div>
+      <div class="strip" id="strip"></div>
+    </div>
+    <div class="controls">
+      <button class="open-btn" id="openBtn" type="button"></button>
+      <label class="check"><input type="checkbox" id="fastChk"> Szybkie otwieranie</label>
+    </div>
+    <div id="contents"></div>
+  </section>
+
+  <section id="v-inv" hidden>
+    <h2>Twój ekwipunek</h2>
+    <div class="toolbar">
+      <div class="left">
+        <div class="total">Wartość: <span id="totalAcorn"></span><span id="totalVal">0</span></div>
+        <label>Sortuj:
+          <select id="sortSel">
+            <option value="value">Od najcenniejszych</option>
+            <option value="new">Od najnowszych</option>
+            <option value="rarity">Według rzadkości</option>
+          </select>
+        </label>
+      </div>
+      <div class="left">
+        <button class="pill" type="button" id="sellCommon">Sprzedaj wojskowe</button>
+        <button class="pill" type="button" id="sellAll">Sprzedaj wszystko</button>
+      </div>
+    </div>
+    <div class="grid" id="invGrid"></div>
+    <div class="danger"><button type="button" id="resetBtn">Zacznij grę od nowa</button></div>
+  </section>
+</main>
+
+<footer>
+  Gra dla zabawy. Żołędzie to waluta wirtualna i nie mają żadnej wartości poza tą stroną. Projekt fanowski, niezwiązany z Valve ani z Counter-Strike.
+</footer>
+
+<dialog id="dlg" aria-labelledby="dlgTitle"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ===================== USTAWIENIA (łatwo zmienić) ===================== */
+const START_BALANCE = 1000;     // ile żołędzi na start
+const TROUGH_REWARD = 100;      // nagroda z żłobu
+const TROUGH_COOLDOWN = 30;     // sekundy między karmieniami
+const SPIN_MS = 7000;           // czas losowania
+const SPIN_FAST_MS = 1800;      // czas w trybie szybkim
+const SAVE_KEY = 'prosiak-case-v1';
+
+/* ===================== NARZĘDZIA ===================== */
+const $ = s => document.querySelector(s);
+const rnd = () => { try { return crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296; } catch (e) { return Math.random(); } };
+const fmt = n => Math.round(n).toLocaleString('pl-PL');
+const ACORN = '<svg class="ac" viewBox="0 0 24 24" aria-hidden="true"><rect x="11" y="1.5" width="2" height="4.5" rx="1" fill="#7a4a1d"/><path d="M5 12.5c0-4.2 3-7 7-7s7 2.800 7 7z" fill="#8a5424"/><path d="M6 13.500h12c0 4.500-3 8.500-6 8.500s-6-4-6-8.500z" fill="#d9964a"/><path d="M9 15c.3 2 1.300 3.500 2 4" stroke="#fff" stroke-opacity=".35" stroke-width="1.500" fill="none" stroke-linecap="round"/></svg>';
+
+function mix(h, t, p) {
+  const a = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const b = [1, 3, 5].map(i => parseInt(t.slice(i, i + 2), 16));
+  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * p).toString(16).padStart(2, '0')).join('');
+}
+
+/* ===================== RZADKOŚCI (szanse jak w CS2) ===================== */
+const ORDER = ['mil', 'res', 'cls', 'cov', 'spc'];
+const RAR = {
+  mil: { name: 'Wojskowy',       color: '#4b69ff', chance: 79.92, mult: 1 },
+  res: { name: 'Ograniczony',    color: '#8847ff', chance: 15.98, mult: 1 },
+  cls: { name: 'Tajny',          color: '#d32ce6', chance: 3.20,  mult: 1 },
+  cov: { name: 'Ściśle tajny',   color: '#eb4b4b', chance: 0.64,  mult: 1 },
+  spc: { name: 'Rzadki specjał', color: '#ffd700', chance: 0.26,  mult: 1 }
+};
+// szanse tylko do wyświetlania w pasku losowania (żeby częściej mignęło coś fajnego)
+const VISUAL_CHANCE = { mil: 58, res: 22, cls: 11, cov: 6, spc: 3 };
+
+/* ===================== SKINY ŚWIŃ ===================== */
+// art: wygląd świni (kolory + wzór). base: cena bazowa w żołędziach.
+const SKINS = [
+  // Wojskowy
+  { id: 'klasyk', breed: 'Wielka Biała', title: 'Różowy Klasyk',     rarity: 'mil', base: 10,  art: { body: '#f5a9ba', ear: '#e98aa3', snout: '#f9c4d0', pat: 'none' } },
+  { id: 'bloto',  breed: 'Duroc',        title: 'Błotna Kąpiel',     rarity: 'mil', base: 12,  art: { body: '#a9795a', ear: '#8b5e43', snout: '#c39274', pat: 'spots', pc: '#5c3b28' } },
+  { id: 'slom',   breed: 'Tamworth',     title: 'Słomiany Blondyn',  rarity: 'mil', base: 14,  art: { body: '#e8cf8e', ear: '#d4b46a', snout: '#f2dfae', pat: 'stripes', pc: '#c9a45a', sp: 18, ang: -20 } },
+  { id: 'szary',  breed: 'Pietrain',     title: 'Zagrodowy Szary',   rarity: 'mil', base: 9,   art: { body: '#9aa0a6', ear: '#7e858c', snout: '#b9bec3', pat: 'none' } },
+  { id: 'mieta',  breed: 'Kunekune',     title: 'Miętowy Prosiak',   rarity: 'mil', base: 18,  art: { body: '#8fe3c2', ear: '#6bc9a5', snout: '#b4f0d9', pat: 'dots', pc: '#ffffff' } },
+  // Ograniczony
+  { id: 'krowie', breed: 'Puławska',     title: 'Krowie Łaty',       rarity: 'res', base: 55,  art: { body: '#f4f1ea', ear: '#2a2a2a', snout: '#f3b9c6', pat: 'spots', pc: '#1c1c1c' } },
+  { id: 'arbuz',  breed: 'Hampshire',    title: 'Arbuzowy Prosiak',  rarity: 'res', base: 70,  art: { body: '#ff6b7d', ear: '#2f9e44', snout: '#ff98a5', pat: 'stripes', pc: '#2f9e44', sp: 16, ang: -8 } },
+  { id: 'kamo',   breed: 'Berkshire',    title: 'Leśny Kamuflaż',    rarity: 'res', base: 62,  art: { body: '#6b7d4a', ear: '#4f5e36', snout: '#8a9a68', pat: 'spots', pc: ['#4a5a30', '#2f3a1f', '#8a7a4a'] } },
+  { id: 'sliwka', breed: 'Złotnicka',    title: 'Śliwkowy Boczek',   rarity: 'res', base: 85,  art: { body: '#7d4a8c', ear: '#5e3470', snout: '#a273b0', pat: 'dots', pc: '#c79be0' } },
+  // Tajny
+  { id: 'neon',   breed: 'Mangalica',    title: 'Neonowy Boczek',    rarity: 'cls', base: 320, art: { body: '#1b1030', ear: '#ff2bd6', snout: '#ff7be5', pat: 'neon' } },
+  { id: 'zebra',  breed: 'Pietrain',     title: 'Zebra z Zagrody',   rarity: 'cls', base: 240, art: { body: '#f5f5f5', ear: '#222222', snout: '#d9d9d9', pat: 'stripes', pc: '#161616', sp: 14, ang: -10 } },
+  { id: 'lawa',   breed: 'Duroc',        title: 'Wulkaniczny Knur',  rarity: 'cls', base: 380, art: { body: '#2a1410', ear: '#ff6a1a', snout: '#6b2f20', hoof: '#ff6a1a', pat: 'lava' } },
+  // Ściśle tajny
+  { id: 'kosmos', breed: 'Mangalica',    title: 'Kosmiczna Maciora', rarity: 'cov', base: 1500, art: { body: '#140b33', ear: '#6b3fd1', snout: '#6a4fb0', pat: 'galaxy' } },
+  { id: 'tecza',  breed: 'Kunekune',     title: 'Tęczowy Wieprz',    rarity: 'cov', base: 1100, art: { body: '#ffffff', ear: '#ff8fb3', snout: '#ffd0e0', pat: 'rainbow' } },
+  // Rzadki specjał
+  { id: 'zlota',  breed: 'Mangalica',    title: 'Złota Świnia',      rarity: 'spc', base: 9000,  shine: true, art: { body: '#ffc83d', ear: '#d99a00', snout: '#ffe08a', hoof: '#8a5a00', pat: 'gold' } },
+  { id: 'diament',breed: 'Hampshire',    title: 'Diamentowy Prosiak',rarity: 'spc', base: 12000, shine: true, art: { body: '#bfeeff', ear: '#7fd4f0', snout: '#e3f9ff', hoof: '#4a7f95', pat: 'diamond' } },
+  { id: 'obsyd',  breed: 'Berkshire',    title: 'Obsydianowy Dzik',  rarity: 'spc', base: 15000, shine: true, art: { body: '#15121a', ear: '#ffc83d', snout: '#3a3340', hoof: '#ffc83d', pat: 'obsidian' } }
+];
+const SK = Object.fromEntries(SKINS.map(s => [s.id, s]));
+
+/* ===================== SKRZYNKI ===================== */
+const CASES = [
+  { id: 'chlewik', name: 'Skrzynka Chlewik', price: 100, accent: '#6ea8ff', desc: 'Na początek. Z szansą na Złotą Świnię.',
+    items: ['klasyk', 'bloto', 'slom', 'szary', 'krowie', 'arbuz', 'kamo', 'zebra', 'lawa', 'tecza', 'zlota'] },
+  { id: 'zagroda', name: 'Skrzynka Zagroda', price: 250, accent: '#c77dff', desc: 'Więcej neonów, kosmos i diamentowy prosiak.',
+    items: ['bloto', 'szary', 'mieta', 'slom', 'kamo', 'sliwka', 'arbuz', 'neon', 'zebra', 'kosmos', 'diament'] },
+  { id: 'kojec', name: 'Skrzynka Złoty Kojec', price: 600, accent: '#ffc83d', desc: 'Trzy rzadkie specjały w jednej skrzynce.',
+    items: ['klasyk', 'mieta', 'szary', 'bloto', 'sliwka', 'krowie', 'neon', 'lawa', 'kosmos', 'tecza', 'zlota', 'diament', 'obsyd'] }
+];
+
+/* ===================== RYSOWANIE ŚWINI (SVG) ===================== */
+let uidN = 0;
+const SHAPES = '<ellipse cx="100" cy="80" rx="70" ry="40"/><ellipse cx="163" cy="78" rx="33" ry="30"/>' +
+  '<rect x="50" y="100" width="17" height="34" rx="7"/><rect x="74" y="104" width="17" height="30" rx="7"/>' +
+  '<rect x="124" y="104" width="17" height="30" rx="7"/><rect x="148" y="100" width="17" height="34" rx="7"/>';
+const SPOTS = [[62,66,15,11],[104,92,13,10],[128,58,12,16],[88,52,10,8],[152,86,9,7],[48,92,9,7],[172,62,8,6],[118,76,8,6]];
+const STARS = [[40,50],[66,92],[92,60],[118,104],[134,66],[152,92],[176,58],[190,84],[58,120],[104,40],[78,112],[142,118],[170,110],[48,70],[124,48]];
+
+const spots = c => SPOTS.map(([x, y, rx, ry], i) =>
+  `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" transform="rotate(${i * 37} ${x} ${y})" fill="${Array.isArray(c) ? c[i % c.length] : c}"/>`).join('');
+const dots = c => { let s = ''; for (let r = 0; r < 6; r++) for (let x = 30 + (r % 2) * 11; x < 215; x += 22) s += `<circle cx="${x}" cy="${40 + r * 17}" r="4.500"/>`; return `<g fill="${c}">${s}</g>`; };
+const stripes = (c, sp, ang) => { let s = ''; for (let x = -40; x < 280; x += sp * 2) s += `<rect x="${x}" y="-40" width="${sp}" height="240"/>`; return `<g fill="${c}" transform="rotate(${ang} 110 75)">${s}</g>`; };
+
+const PAT = {
+  none: () => '',
+  spots: (u, a) => spots(a.pc),
+  dots: (u, a) => dots(a.pc),
+  stripes: (u, a) => stripes(a.pc, a.sp || 16, a.ang || -12),
+  neon: () => {
+    const L = [['#00e5ff', 'M44 128 L84 40'], ['#ff2bd6', 'M76 134 L118 38'], ['#00e5ff', 'M112 130 L150 44'], ['#ff2bd6', 'M146 128 L186 52']];
+    return L.map(([c, d]) => `<path d="${d}" stroke="${c}" stroke-opacity=".28" stroke-width="10" fill="none" stroke-linecap="round"/><path d="${d}" stroke="${c}" stroke-width="3" fill="none" stroke-linecap="round"/>`).join('');
+  },
+  lava: () => {
+    const P = ['M44 104 L70 82 L64 62 L92 52 L106 72 L132 62 L148 92 L184 76', 'M78 126 L96 98 L120 106 L134 126'];
+    return P.map(d => `<path d="${d}" stroke="#ff6a1a" stroke-opacity=".35" stroke-width="9" fill="none" stroke-linejoin="round"/><path d="${d}" stroke="#ff8a2a" stroke-width="3.500" fill="none" stroke-linejoin="round"/><path d="${d}" stroke="#ffd23f" stroke-width="1.200" fill="none" stroke-linejoin="round"/>`).join('');
+  },
+  galaxy: u => `<linearGradient id="${u}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b0626"/><stop offset=".5" stop-color="#2a1260"/><stop offset="1" stop-color="#0b0626"/></linearGradient>` +
+    `<rect width="220" height="150" fill="url(#${u}g)"/><ellipse cx="80" cy="76" rx="42" ry="20" fill="#ff4fd8" opacity=".25" transform="rotate(-20 80 76)"/><ellipse cx="140" cy="92" rx="40" ry="16" fill="#3fd0ff" opacity=".22" transform="rotate(15 140 92)"/>` +
+    STARS.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 3 ? 1 : 1.700}" fill="#fff"/>`).join(''),
+  rainbow: () => ['#ff4d4d', '#ff9f43', '#ffe14d', '#4dd66a', '#4db8ff', '#9b6bff'].map((c, i) => `<rect x="0" y="${34 + i * 17}" width="220" height="17.500" fill="${c}"/>`).join(''),
+  gold: u => `<linearGradient id="${u}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4b0"/><stop offset=".35" stop-color="#ffc83d"/><stop offset=".62" stop-color="#c98a00"/><stop offset="1" stop-color="#ffe27a"/></linearGradient>` +
+    `<rect width="220" height="150" fill="url(#${u}g)"/><ellipse cx="90" cy="58" rx="40" ry="9" fill="#fff" opacity=".35" transform="rotate(-8 90 58)"/>`,
+  diamond: u => `<linearGradient id="${u}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0fdff"/><stop offset=".5" stop-color="#7fd6f5"/><stop offset="1" stop-color="#d6f6ff"/></linearGradient>` +
+    `<rect width="220" height="150" fill="url(#${u}g)"/><g fill="#fff" opacity=".4"><polygon points="30,84 74,42 112,84"/><polygon points="112,84 150,40 186,84"/></g><g fill="#2a90b8" opacity=".22"><polygon points="50,120 92,70 130,120"/><polygon points="130,120 160,76 200,120"/></g>`,
+  obsidian: u => `<linearGradient id="${u}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2535"/><stop offset="1" stop-color="#0a080d"/></linearGradient>` +
+    `<rect width="220" height="150" fill="url(#${u}g)"/><g fill="none" stroke="#ffc83d" stroke-linejoin="round"><path d="M40 92 L70 70 L88 86 L120 56 L146 78 L182 60" stroke-width="2.500"/><path d="M62 124 L92 104 L110 118 L138 96" stroke-width="2"/></g>`
+};
+
+function pigSVG(sk) {
+  const a = sk.art, u = 'p' + (uidN++);
+  const pat = (PAT[a.pat] || PAT.none)(u, a);
+  return `<svg viewBox="0 0 220 150" aria-hidden="true" focusable="false">` +
+    `<defs><clipPath id="${u}c">${SHAPES}</clipPath>` +
+    `<linearGradient id="${u}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".32"/></linearGradient></defs>` +
+    `<ellipse cx="112" cy="140" rx="86" ry="6" fill="#000" opacity=".35"/>` +
+    `<path d="M32 74 C14 70 10 52 22 48 C32 45 34 56 26 58" fill="none" stroke="${a.body}" stroke-width="6" stroke-linecap="round"/>` +
+    `<g fill="${a.body}">${SHAPES}</g>` +
+    `<g clip-path="url(#${u}c)">${pat}<rect width="220" height="150" fill="url(#${u}s)"/>` +
+      (sk.shine ? `<rect class="shine" x="0" y="-20" width="26" height="200" fill="#fff" opacity=".5"/>` : '') + `</g>` +
+    `<g fill="${a.hoof || '#3b2a22'}"><rect x="50" y="126" width="17" height="8" rx="3"/><rect x="74" y="126" width="17" height="8" rx="3"/><rect x="124" y="126" width="17" height="8" rx="3"/><rect x="148" y="126" width="17" height="8" rx="3"/></g>` +
+    `<polygon points="146,56 156,26 182,52" fill="${a.ear}"/>` +
+    `<ellipse cx="200" cy="82" rx="13" ry="15" fill="${a.snout}"/>` +
+    `<g fill="${mix(a.snout, '#000000', .55)}"><ellipse cx="204" cy="76" rx="2.600" ry="4"/><ellipse cx="204" cy="88" rx="2.600" ry="4"/></g>` +
+    `<circle cx="176" cy="68" r="4.200" fill="#1a1010"/><circle cx="177.300" cy="66.700" r="1.400" fill="#fff"/>` +
+    `</svg>`;
+}
+
+function crateSVG(accent) {
+  return `<svg class="crate" viewBox="0 0 200 160" aria-hidden="true">` +
+    `<ellipse cx="100" cy="148" rx="80" ry="8" fill="#000" opacity=".4"/>` +
+    `<rect x="24" y="46" width="152" height="100" rx="8" fill="#6b4630"/>` +
+    `<path d="M24 79H176M24 112H176" stroke="#4a2f20" stroke-width="3"/>` +
+    `<rect x="24" y="46" width="16" height="100" fill="${accent}" opacity=".9"/><rect x="160" y="46" width="16" height="100" fill="${accent}" opacity=".9"/>` +
+    `<rect x="16" y="30" width="168" height="30" rx="8" fill="#80553a"/><rect x="16" y="30" width="168" height="8" rx="4" fill="#fff" opacity=".12"/>` +
+    `<polygon points="72,86 76,64 96,80" fill="#e98aa3"/><polygon points="128,86 124,64 104,80" fill="#e98aa3"/>` +
+    `<ellipse cx="100" cy="100" rx="32" ry="25" fill="#f4a6b8"/><ellipse cx="100" cy="106" rx="16" ry="12" fill="#f9c4d0"/>` +
+    `<ellipse cx="94" cy="106" rx="3.200" ry="5.500" fill="#b4586f"/><ellipse cx="106" cy="106" rx="3.200" ry="5.500" fill="#b4586f"/>` +
+    `<circle cx="84" cy="92" r="3.500" fill="#1a1010"/><circle cx="116" cy="92" r="3.500" fill="#1a1010"/></svg>`;
+}
+
+/* ===================== STAN GRY ===================== */
+let st = { bal: START_BALANCE, inv: [], opened: 0, troughAt: 0, muted: false, fast: false, uid: 1 };
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s && typeof s.bal === 'number') { st = Object.assign(st, s); st.inv = (st.inv || []).filter(i => SK[i.skin]); }
+  } catch (e) { /* brak zapisu */ }
+}
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(st)); } catch (e) { /* tryb prywatny */ } }
+
+const WEARS = [[0.07, 'Fabrycznie nowy'], [0.15, 'Mało zużyty'], [0.38, 'Nieco znoszony'], [0.45, 'Dość zniszczony'], [2, 'Zdarty w boju']];
+const wearName = f => WEARS.find(w => f < w[0])[1];
+const valueOf = it => Math.max(1, Math.round(SK[it.skin].base * (1.8 - 1.4 * it.float)));
+const fullName = sk => `${sk.breed} | ${sk.title}`;
+
+function rollRarity(chances) {
+  const total = ORDER.reduce((s, k) => s + chances[k], 0);
+  let r = rnd() * total, acc = 0;
+  for (const k of ORDER) { acc += chances[k]; if (r < acc) return k; }
+  return 'mil';
+}
+function pickSkin(c, chances) {
+  const rar = rollRarity(chances);
+  const pool = c.items.filter(id => SK[id].rarity === rar);
+  return pool[Math.floor(rnd() * pool.length)];
+}
+function rollDrop(c) {
+  const chances = Object.fromEntries(ORDER.map(k => [k, RAR[k].chance]));
+  return { uid: st.uid++, skin: pickSkin(c, chances), float: Math.pow(rnd(), 1.25), ts: Date.now() };
+}
+
+/* ===================== DŹWIĘK ===================== */
+let actx = null;
+function ac() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function blip(freq, dur, type, vol, when, slideTo) {
+  if (st.muted) return;
+  const a = ac(); if (!a) return;
+  const t = a.currentTime + (when || 0), o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'triangle';
+  o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(vol || .05, t);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(t); o.stop(t + dur + .02);
+}
+const tickSound = () => blip(650 + rnd() * 80, .04, 'square', .02);
+function winSound(rar) {
+  blip(320, .16, 'sawtooth', .05, 0, 150); blip(260, .14, 'sawtooth', .04, .18, 130);   // oink oink
+  if (rar === 'cov' || rar === 'spc') [523, 659, 784, 1047].forEach((f, i) => blip(f, .28, 'triangle', .06, .4 + i * .1));
+}
+
+/* ===================== UI: POMOCNICZE ===================== */
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function itemCard(sk, extra) {
+  return `<div class="item" style="--rc:${RAR[sk.rarity].color}">${pigSVG(sk)}<div class="iname"><span class="breed">${sk.breed}</span><b title="${fullName(sk)}">${sk.title}</b></div>${extra || ''}</div>`;
+}
+
+let view = 'cases', current = null, busy = false;
+function setView(v) {
+  view = v;
+  $('#v-cases').hidden = v !== 'cases';
+  $('#v-case').hidden = v !== 'case';
+  $('#v-inv').hidden = v !== 'inv';
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.view === (v === 'inv' ? 'inv' : 'cases')));
+}
+
+function renderBalance() {
+  $('#bal').textContent = fmt(st.bal);
+  $('#invCount').textContent = st.inv.length;
+  if (current) {
+    const b = $('#openBtn');
+    b.disabled = busy || st.bal < current.price;
+    b.innerHTML = st.bal < current.price && !busy ? 'Za mało żołędzi' : `Otwórz za ${ACORN}${fmt(current.price)}`;
+  }
+}
+
+/* ===================== LISTA SKRZYNEK ===================== */
+function renderCases() {
+  $('#caseGrid').innerHTML = CASES.map(c => `
+    <button class="case-card" type="button" data-id="${c.id}" style="--cc:${c.accent}">
+      ${crateSVG(c.accent)}
+      <h3>${c.name}</h3>
+      <p>${c.desc}</p>
+      <span class="price">${ACORN}${fmt(c.price)}</span>
+    </button>`).join('');
+}
+
+/* ===================== STRONA SKRZYNKI + RULETKA ===================== */
+const CARD = () => (window.innerWidth <= 560 ? 132 : 150);
+const GAP = 8;
+const STEP = () => CARD() + GAP;
+let strip, roulette;
+
+function buildStrip(c, n, winIdx, drop) {
+  const chances = VISUAL_CHANCE;
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const id = (i === winIdx && drop) ? drop.skin : pickSkin(c, chances);
+    html += itemCard(SK[id]).replace('class="item"', `class="item" data-i="${i}"`);
+  }
+  strip.innerHTML = html;
+}
+function idleStrip() {
+  buildStrip(current, 30, -1, null);
+  strip.style.transition = 'none';
+  strip.style.transform = `translateX(${roulette.clientWidth / 2 - CARD() / 2 - STEP() * 4}px)`;
+  roulette.classList.remove('done');
+}
+
+function renderContents(c) {
+  const out = ORDER.slice().reverse().map(k => {
+    const ids = c.items.filter(id => SK[id].rarity === k);
+    if (!ids.length) return '';
+    const each = RAR[k].chance / ids.length;
+    return `<div class="group" style="--rc:${RAR[k].color}">
+      <div class="group-head"><b>${RAR[k].name}</b><span>${RAR[k].chance.toLocaleString('pl-PL')}% łącznie (po ${each.toLocaleString('pl-PL', { maximumFractionDigits: 3 })}% na skina)</span></div>
+      <div class="grid">${ids.map(id => itemCard(SK[id])).join('')}</div></div>`;
+  }).join('');
+  $('#contents').innerHTML = `<h2 style="margin-top:34px">Co może wypaść</h2>${out}`;
+}
+
+function showCase(id) {
+  current = CASES.find(c => c.id === id);
+  setView('case');
+  $('#caseTitle').textContent = current.name;
+  $('#fastChk').checked = !!st.fast;
+  renderContents(current);
+  idleStrip();
+  renderBalance();
+  window.scrollTo({ top: 0 });
+}
+
+function spin(winIdx, dur) {
+  return new Promise(resolve => {
+    const cw = roulette.clientWidth, card = CARD(), step = STEP();
+    const jitter = (rnd() - .5) * (card - 28);
+    const x0 = cw / 2 - card / 2 - step * 2;
+    const x1 = cw / 2 - (winIdx * step + card / 2 + jitter);
+    strip.style.transition = 'none';
+    strip.style.transform = `translateX(${x0}px)`;
+    void strip.offsetWidth;
+    strip.style.transition = `transform ${dur}ms cubic-bezier(.08,.55,.1,1)`;
+    strip.style.transform = `translateX(${x1}px)`;
+
+    let last = -1, running = true;
+    (function loop() {
+      if (!running) return;
+      const x = new DOMMatrix(getComputedStyle(strip).transform).m41;
+      const idx = Math.floor((cw / 2 - x) / step);
+      if (idx !== last) { last = idx; tickSound(); }
+      requestAnimationFrame(loop);
+    })();
+    setTimeout(() => { running = false; resolve(); }, dur + 80);
+  });
+}
+
+async function openCase() {
+  if (busy || !current) return;
+  const c = current;
+  if (st.bal < c.price) { toast('Za mało żołędzi. Nakarm świnię w żłobie albo sprzedaj skiny.'); return; }
+  ac(); // odblokuj dźwięk po geście użytkownika
+  busy = true;
+  st.bal -= c.price; st.opened++;
+  const drop = rollDrop(c);
+  st.inv.push(drop); save();           // zapis od razu, odświeżenie strony niczego nie psuje
+  renderBalance();
+
+  const W = 48 + Math.floor(rnd() * 8);
+  roulette.classList.remove('done');
+  buildStrip(c, 64, W, drop);
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dur = reduce ? 700 : (st.fast ? SPIN_FAST_MS : SPIN_MS);
+  await spin(W, dur);
+
+  const winEl = strip.querySelector(`[data-i="${W}"]`);
+  if (winEl) winEl.classList.add('win');
+  roulette.classList.add('done');
+  winSound(SK[drop.skin].rarity);
+  await new Promise(r => setTimeout(r, st.fast ? 350 : 900));
+  busy = false;
+  renderBalance();
+  showResult(drop);
+}
+
+function showResult(drop) {
+  const sk = SK[drop.skin], r = RAR[sk.rarity], dlg = $('#dlg');
+  dlg.style.setProperty('--rc', r.color);
+  dlg.innerHTML = `
+    <h3 id="dlgTitle">${r.name}</h3>
+    ${pigSVG(sk)}
+    <div class="nm">${fullName(sk)}</div>
+    <div class="sub">${wearName(drop.float)}, float ${drop.float.toFixed(4)}</div>
+    <div class="row">
+      <button class="keep" type="button" data-act="keep">Zatrzymaj</button>
+      <button class="sellbtn" type="button" data-act="sell">Sprzedaj ${ACORN}${fmt(valueOf(drop))}</button>
+    </div>`;
+  dlg.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.act === 'sell') sellItem(drop.uid);
+    dlg.close();
+  };
+  if (!dlg.open) dlg.showModal();
+}
+
+/* ===================== EKWIPUNEK ===================== */
+function sellItem(uid, silent) {
+  const i = st.inv.findIndex(x => x.uid === uid); if (i < 0) return 0;
+  const v = valueOf(st.inv[i]);
+  st.inv.splice(i, 1); st.bal += v; save();
+  renderBalance(); renderInv();
+  if (!silent) toast(`Sprzedano za ${fmt(v)} żołędzi`);
+  return v;
+}
+function renderInv() {
+  const mode = $('#sortSel').value;
+  const list = st.inv.slice().sort((a, b) =>
+    mode === 'new' ? b.ts - a.ts :
+    mode === 'rarity' ? (ORDER.indexOf(SK[b.skin].rarity) - ORDER.indexOf(SK[a.skin].rarity)) || (valueOf(b) - valueOf(a)) :
+    valueOf(b) - valueOf(a));
+  $('#totalAcorn').innerHTML = ACORN;
+  $('#totalVal').textContent = fmt(st.inv.reduce((s, i) => s + valueOf(i), 0));
+  $('#sellAll').disabled = $('#sellCommon').disabled = !st.inv.length;
+  $('#invGrid').innerHTML = list.length ? list.map(it => {
+    const sk = SK[it.skin];
+    return itemCard(sk, `<div class="meta">${wearName(it.float)} (${it.float.toFixed(3)})</div>
+      <button class="sell" type="button" data-sell="${it.uid}">Sprzedaj ${ACORN}${fmt(valueOf(it))}</button>`);
+  }).join('') : '<div class="empty" style="grid-column:1/-1">Pusto. Otwórz pierwszą skrzynkę, żeby zdobyć świnię.</div>';
+  $('#invCount').textContent = st.inv.length;
+}
+
+/* ===================== ŻŁÓB (darmowe żołędzie) ===================== */
+function troughLeft() { return Math.max(0, Math.ceil((st.troughAt + TROUGH_COOLDOWN * 1000 - Date.now()) / 1000)); }
+function renderTrough() {
+  const left = troughLeft(), b = $('#trough');
+  b.disabled = left > 0;
+  b.textContent = left > 0 ? `Żłób pusty: ${left} s` : `Żłób: +${TROUGH_REWARD}`;
+}
+
+/* ===================== ZDARZENIA ===================== */
+function init() {
+  load();
+  strip = $('#strip'); roulette = $('#roulette');
+  $('#logoPig').innerHTML = pigSVG(SK.klasyk);
+  $('#acornIcon').innerHTML = ACORN;
+  renderCases(); renderInv(); renderBalance(); renderTrough();
+  $('#muteBtn').textContent = st.muted ? 'Dźwięk: wył.' : 'Dźwięk: wł.';
+  $('#muteBtn').setAttribute('aria-pressed', String(st.muted));
+
+  $('#caseGrid').addEventListener('click', e => { const c = e.target.closest('.case-card'); if (c) showCase(c.dataset.id); });
+  $('#backBtn').addEventListener('click', () => { if (busy) return toast('Poczekaj na koniec losowania.'); current = null; setView('cases'); });
+  $('#openBtn').addEventListener('click', openCase);
+  $('#fastChk').addEventListener('change', e => { st.fast = e.target.checked; save(); });
+
+  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+    if (busy) return toast('Poczekaj na koniec losowania.');
+    current = null; setView(b.dataset.view);
+    if (b.dataset.view === 'inv') renderInv();
+  }));
+
+  $('#trough').addEventListener('click', () => {
+    if (troughLeft() > 0) return;
+    st.bal += TROUGH_REWARD; st.troughAt = Date.now(); save();
+    renderBalance(); renderTrough(); blip(300, .12, 'sawtooth', .04, 0, 160);
+    toast(`Świnie się najadły: +${TROUGH_REWARD} żołędzi`);
+  });
+  setInterval(renderTrough, 500);
+
+  $('#muteBtn').addEventListener('click', e => {
+    st.muted = !st.muted; save();
+    e.currentTarget.textContent = st.muted ? 'Dźwięk: wył.' : 'Dźwięk: wł.';
+    e.currentTarget.setAttribute('aria-pressed', String(st.muted));
+  });
+
+  $('#sortSel').addEventListener('change', renderInv);
+  $('#invGrid').addEventListener('click', e => { const b = e.target.closest('[data-sell]'); if (b) sellItem(Number(b.dataset.sell)); });
+  $('#sellCommon').addEventListener('click', () => {
+    const ids = st.inv.filter(i => SK[i.skin].rarity === 'mil').map(i => i.uid);
+    if (!ids.length) return toast('Nie masz skinów wojskowych.');
+    const sum = ids.reduce((s, id) => s + sellItem(id, true), 0);
+    toast(`Sprzedano ${ids.length} szt. za ${fmt(sum)} żołędzi`);
+  });
+  $('#sellAll').addEventListener('click', () => {
+    if (!st.inv.length || !confirm('Sprzedać cały ekwipunek, także rzadkie skiny?')) return;
+    const n = st.inv.length, sum = st.inv.slice().reduce((s, i) => s + sellItem(i.uid, true), 0);
+    toast(`Sprzedano ${n} szt. za ${fmt(sum)} żołędzi`);
+  });
+  $('#resetBtn').addEventListener('click', () => {
+    if (!confirm('Usunąć cały postęp i zacząć od nowa?')) return;
+    st = { bal: START_BALANCE, inv: [], opened: 0, troughAt: 0, muted: st.muted, fast: st.fast, uid: 1 };
+    save(); renderBalance(); renderInv(); renderTrough(); toast('Zaczynasz od nowa.');
+  });
+
+  window.addEventListener('resize', () => { if (current && !busy && view === 'case') idleStrip(); });
+}
+init();
+})();
+</script>
+</body>
+</html>
